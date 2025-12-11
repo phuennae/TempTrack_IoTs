@@ -1,13 +1,13 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-// --- 1. ตั้งค่า WiFi บ้านคุณ ---
-const char* ssid = "...";        // ใส่ชื่อ WiFi
-const char* password = "..."; // ใส่รหัส WiFi
+// --- 1. Set up your WIFI to use (2.4 GHz) ---
+const char* ssid = "...";        // Enter WIFI username
+const char* password = "..."; // Enter WIFI password
 
-// --- 2. ตั้งค่า Server AWS EC2 ---
-// ไปดูที่หน้าเว็บ AWS ตรงช่อง "Public IPv4 address"
-const char* mqtt_server = "...";  // ใส่ IP ของ EC2 เช่น "13.214.25.178"
+// --- 2. Set up  Server AWS EC2 ---
+// Look at AWS in "Public IPv4 address"
+const char* mqtt_server = "...";  // Enter IP of EC2 Example "13.214.25.178"
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -15,7 +15,7 @@ PubSubClient client(espClient);
 void setup() {
   Serial.begin(115200);
   
-  // เชื่อมต่อ WiFi
+  // Connect WIFI
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -23,14 +23,14 @@ void setup() {
   }
   Serial.println("\nWiFi Connected!");
 
-  // ตั้งค่า MQTT
+  // Set up MQTT
   client.setServer(mqtt_server, 1883);
 }
 
 void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    // สร้างชื่อ Client ID แบบสุ่มจะได้ไม่ซ้ำ
+    // Create random Client ID 
     String clientId = "ESP32Client-";
     clientId += String(random(0xffff), HEX);
     
@@ -51,18 +51,18 @@ void loop() {
   }
   client.loop();
 
-  // --- 3. จำลองค่าอุณหภูมิ (Mock Data) ---
+  // --- 3. Mock Temp Data ---
   float mockTemp = random(2000, 4000) / 100.0; // สุ่มเลข 20.00 ถึง 40.00
   
-  // สร้าง JSON String
+  // Create JSON String
   String payload = "{\"sensor_id\": \"ESP32_01\", \"temp\": " + String(mockTemp) + "}";
   
   Serial.print("Sending payload: ");
   Serial.println(payload);
   
-  // ส่งข้อมูลไปที่หัวข้อ 'kidbright/temp'
+  // Send Data to 'kidbright/temp'
   client.publish("kidbright/temp", payload.c_str());
 
-  // ส่งทุกๆ 5 วินาที
+  // Send every 5 sec
   delay(5000);
 }
