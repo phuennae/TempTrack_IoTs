@@ -22,5 +22,5 @@ Step 8 : !Change the IPv4 address of EC2 server! (Important)
 
 Step 9 : Burn code in to ESP32.
 
-Step 10 : Go to Ubuntu in EC2 and type "mosquitto_sub -h localhost -t "#" -v" to show all data that server recieved
+Step 10 : Go to Ubuntu in EC2 and type "mosquitto_sub -h localhost -t "#" -v" to show all data that server recieved.
  
