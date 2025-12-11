@@ -2,12 +2,12 @@
 #include <PubSubClient.h>
 
 // --- 1. ตั้งค่า WiFi บ้านคุณ ---
-const char* ssid = "Nenae";        // ใส่ชื่อ WiFi
-const char* password = "nenae014"; // ใส่รหัส WiFi
+const char* ssid = "...";        // ใส่ชื่อ WiFi
+const char* password = "..."; // ใส่รหัส WiFi
 
 // --- 2. ตั้งค่า Server AWS EC2 ---
 // ไปดูที่หน้าเว็บ AWS ตรงช่อง "Public IPv4 address"
-const char* mqtt_server = "13.214.25.178";  // ใส่ IP ของ EC2 เช่น "13.214.25.178"
+const char* mqtt_server = "...";  // ใส่ IP ของ EC2 เช่น "13.214.25.178"
 
 WiFiClient espClient;
 PubSubClient client(espClient);
