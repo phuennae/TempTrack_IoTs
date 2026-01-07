@@ -1,44 +1,41 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <time.h>
-// Libraries for the DS18B20 Temperature Sensor
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
 // --- Sensor Configuration ---
-// Data wire is connected to GPIO 19 on the ESP32
-#define ONE_WIRE_BUS 19 
-
-// Setup a oneWire instance to communicate with any OneWire devices
+#define ONE_WIRE_BUS 19  // Data wire connected to GPIO 19
 OneWire oneWire(ONE_WIRE_BUS);
-// Pass the oneWire reference to Dallas Temperature library
 DallasTemperature sensors(&oneWire);
 
 // --- WiFi Configuration ---
-// Update these with the target network credentials
-const char* ssid = "..."; // Enter WIFI username        
-const char* password = "..."; // Enter WIFI password
+const char* ssid = "Nenae";        
+const char* password = "nenae014"; 
 
 // --- MQTT Broker Configuration ---
-// IP Address of the AWS EC2 instance acting as the broker
-const char* mqtt_server = "..."; // Enter IP of EC2 Example "13.214.25.178"
+const char* mqtt_server = "13.212.111.239"; // AWS EC2 IP
 
 // --- Time Server Settings (NTP) ---
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 7 * 3600;   // Offset for Thailand (GMT+7)
-const int   daylightOffset_sec = 0;     // No daylight saving time
+const long  gmtOffset_sec = 7 * 3600;   // GMT+7 for Thailand
+const int   daylightOffset_sec = 0;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+// --- Timer Variables for Non-blocking Delay ---
+unsigned long previousMillis = 0;  // Stores the last time temperature was published
+const long interval = 5000;        // Interval at which to publish (5000ms = 5s)
+
 void setup() {
   Serial.begin(115200);
 
-  // Initialize the DS18B20 sensor library
+  // Initialize Sensor
   sensors.begin();
   Serial.println("DS18B20 Sensor Started");
   
-  // Connect to the WiFi network
+  // Connect to WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -46,7 +43,7 @@ void setup() {
   }
   Serial.println("\nWiFi Connected!");
 
-  // Initialize and synchronize time via NTP
+  // Sync Time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   struct tm timeinfo;
   if(!getLocalTime(&timeinfo)){
@@ -55,25 +52,19 @@ void setup() {
      Serial.println("Time Synced!");
   }
 
-  // Set the MQTT server and port (default 1883)
+  // Setup MQTT
   client.setServer(mqtt_server, 1883);
 }
 
-// Function to handle MQTT reconnection logic
 void reconnect() {
-  // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    
-    // Create a random Client ID to avoid conflicts with other devices
     String clientId = "ESP32Client-";
     clientId += String(random(0xffff), HEX);
     
-    // Attempt to connect using the generated Client ID
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
     } else {
-      // If connection fails, print the error code and wait 5 seconds before retrying
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
@@ -82,51 +73,52 @@ void reconnect() {
   }
 }
 
-// Helper function to get the current time as a formatted String
 String getCurrentTime() {
   struct tm timeinfo;
-  // Return "null" if time cannot be fetched
   if(!getLocalTime(&timeinfo)){
     return "null"; 
   }
-  // Format time as: YYYY-MM-DD HH:MM:SS
   char timeStringBuff[50];
   strftime(timeStringBuff, sizeof(timeStringBuff), "%Y-%m-%d %H:%M:%S", &timeinfo);
   return String(timeStringBuff);
 }
 
 void loop() {
-  // Ensure the client is connected to the MQTT broker
+  // 1. Maintain MQTT Connection
   if (!client.connected()) {
     reconnect();
   }
-  client.loop(); // Keep the MQTT client active
+  client.loop();
 
-  // --- Read Data from DS18B20 Sensor ---
-  Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send command to sensor to convert temperature
-  float realTemp = sensors.getTempCByIndex(0); // Read temperature from the first sensor (Index 0)
+  // 2. Check if 5 seconds have passed (Non-blocking timer)
+  unsigned long currentMillis = millis();
 
-  // Validate the reading (-127 indicates the sensor is disconnected or faulty)
-  if(realTemp == -127.00) {
-    Serial.println("Error: Could not read temperature data");
-  } else {
-    Serial.print("Temperature is: ");
-    Serial.println(realTemp);
+  if (currentMillis - previousMillis >= interval) {
+    // Save the last time we sent data
+    previousMillis = currentMillis;
 
-    // Get the current timestamp string
-    String timeStr = getCurrentTime();
+    // --- Start Reading and Sending Process ---
+    Serial.print("Requesting temperatures...");
+    sensors.requestTemperatures(); 
+    float realTemp = sensors.getTempCByIndex(0); 
 
-    // Construct the JSON payload string manually
-    // Format: {"sensor_id": "ESP32_01", "temp": 25.5, "timestamp": "2024-01-01 12:00:00"}
-    String payload = "{\"sensor_id\": \"ESP32_01\", \"temp\": " + String(realTemp) + ", \"timestamp\": \"" + timeStr + "\"}";
-    
-    Serial.print("Sending payload: ");
-    Serial.println(payload);
-    
-    // Publish the payload to the specified MQTT topic
-    client.publish("kidbright/temp", payload.c_str());
+    // Validate Sensor Reading
+    if(realTemp == -127.00) {
+      Serial.println("Error: Could not read temperature data");
+    } else {
+      Serial.print("Temperature is: ");
+      Serial.println(realTemp);
+
+      // Prepare Payload
+      String timeStr = getCurrentTime();
+      String payload = "{\"sensor_id\": \"ESP32_01\", \"temp\": " + String(realTemp) + ", \"timestamp\": \"" + timeStr + "\"}";
+      
+      Serial.print("Sending payload: ");
+      Serial.println(payload);
+      
+      // Publish to MQTT
+      client.publish("kidbright/temp", payload.c_str());
+    }
   }
-
-  delay(5000); // Wait for 5 seconds before the next reading
+  // No delay() here! The loop runs continuously to keep MQTT alive.
 }
