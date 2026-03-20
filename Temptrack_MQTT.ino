@@ -10,11 +10,11 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 // --- WiFi Configuration ---
-const char* ssid = "Nenae";        
-const char* password = "nenae014"; 
+const char* ssid = "..."; Enter yuor WiFi Username       
+const char* password = "..."; Enter yuor WiFi Password    
 
 // --- MQTT Broker Configuration ---
-const char* mqtt_server = "13.212.111.239"; // AWS EC2 IP
+const char* mqtt_server = "..."; // Enter your AWS EC2 IP
 
 // --- Time Server Settings (NTP) ---
 const char* ntpServer = "pool.ntp.org";
